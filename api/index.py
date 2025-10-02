@@ -56,7 +56,7 @@ async def vercel_latency(request_data: LatencyRequest):
 
         # --- FINAL FIX for KeyError ---
         # Safely create the list, skipping any entries that are missing a "latency" key.
-        region_latency_list = [entry["latency"] for entry in region_data if "latency" in entry]
+        region_latency_list = [entry["latency_ms"] for entry in region_data if "latency_ms" in entry]
 
         # If after filtering, there are no valid latency entries, skip this region.
         if not region_latency_list:
@@ -68,7 +68,7 @@ async def vercel_latency(request_data: LatencyRequest):
         avg_latency = sum(region_latency_list) / len(region_latency_list)
         p95_latency = np.percentile(region_latency_list, 95)
         
-        uptime_list = [entry.get("uptime", 0) for entry in region_data]
+        uptime_list = [entry.get("uptime_pct", 0) for entry in region_data]
         avg_uptime = sum(uptime_list) / len(uptime_list)
 
         metrics.append({
