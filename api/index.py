@@ -5,9 +5,20 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import List
+from pathlib import Path # Import Path for robust file handling
 
-file_path = 'q-vercel-latency.json'
+# --- Configuration ---
+# This robustly finds the project root from the api/ directory
+# and builds the correct path to the data file.
+try:
+    BASE_DIR = Path(__file__).resolve().parent.parent
+    file_path = BASE_DIR / 'q-vercel-latency.json'
+except NameError:
+    # Fallback for environments where __file__ is not defined
+    file_path = 'q-vercel-latency.json'
 
+
+# --- Pydantic Models for Automatic Validation ---
 class LatencyRequest(BaseModel):
     regions: List[str]
     threshold_ms: int
@@ -29,7 +40,7 @@ async def vercel_latency(request_data: LatencyRequest):
         with open(file_path, 'r') as file:
             existing_data = json.load(file)
     except FileNotFoundError:
-        return JSONResponse(status_code=500, content={"error": f"Data file not found at path: {file_path}"})
+        return JSONResponse(status_code=500, content={"error": f"Data file not found. Ensure 'q-vercel-latency.json' is in your project's root directory."})
     except json.JSONDecodeError:
         return JSONResponse(status_code=500, content={"error": "Could not parse the JSON data file."})
 
@@ -37,16 +48,20 @@ async def vercel_latency(request_data: LatencyRequest):
     threshold = request_data.threshold_ms
 
     for region in request_data.regions:
-        # Filter data for the current region
         region_data = [entry for entry in existing_data if entry.get("region") == region]
 
-        # FIX #3: Handle cases where a region has no data
         if not region_data:
             metrics.append({"region": region, "error": "No data found for this region."})
             continue
 
-        # FIX #2: Create a latency list for this specific region for correct P95 calculation
-        region_latency_list = [entry["latency"] for entry in region_data]
+        # --- FINAL FIX for KeyError ---
+        # Safely create the list, skipping any entries that are missing a "latency" key.
+        region_latency_list = [entry["latency"] for entry in region_data if "latency" in entry]
+
+        # If after filtering, there are no valid latency entries, skip this region.
+        if not region_latency_list:
+            metrics.append({"region": region, "error": "No valid latency data found for this region."})
+            continue
         
         breaches = sum(1 for latency in region_latency_list if latency > threshold)
         
