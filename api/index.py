@@ -79,4 +79,4 @@ async def vercel_latency(request_data: LatencyRequest):
             "breaches": breaches
         })
 
-    return {"metrics": metrics}
+    return {"regions": metrics}
