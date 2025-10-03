@@ -26,13 +26,12 @@ class LatencyRequest(BaseModel):
 # --- FastAPI App Setup ---
 app = FastAPI()
 
-origins = ["*"]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 @app.post("/vercel")
